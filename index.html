@@ -1,0 +1,107 @@
+<style>
+#chartdiv {
+  width: 100%;
+  height: 500px;
+}
+</style>
+
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+<script src="https://cdn.amcharts.com/lib/5/plugins/json.js"></script>
+
+<script>
+am5.ready(function() {
+
+// URL pública de tu Google Sheet en formato CSV
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNAc8bcfiBqTMlVq3iSM_Hr7h7u1r2ckSoi1STmAS86xVwxEvulacsvnb3JV67LLQ1GtCXRB3M8eIP/pub?gid=0&single=true&output=csv";
+
+// Create root element
+var root = am5.Root.new("chartdiv");
+
+// Set themes
+root.setThemes([
+  am5themes_Animated.new(root)
+]);
+
+// Create chart
+var chart = root.container.children.push(am5percent.PieChart.new(root, {
+  layout: root.verticalLayout,
+  innerRadius: am5.percent(50)
+}));
+
+// Create series
+var series = chart.series.push(am5percent.PieSeries.new(root, {
+  valueField: "value",
+  categoryField: "category",
+  alignLabels: false
+}));
+
+// Configuración de Etiquetas de Datos y Tooltip (mantenidas de la modificación anterior)
+series.labels.template.setAll({
+  text: "{category}: {value}", 
+  position: "outside", 
+  centerX: am5.percent(0),
+  centerY: am5.percent(0)
+});
+
+series.slices.template.setAll({
+  tooltipText: "{category}: {value} ({valuePercentTotal.formatNumber('0.00')}%)"
+});
+
+
+// Create legend
+var legend = chart.children.push(am5.Legend.new(root, {
+  centerX: am5.percent(50),
+  x: am5.percent(50),
+  marginTop: 15,
+  marginBottom: 15,
+}));
+
+// Configuración de Leyenda (mantenidas de la modificación anterior)
+legend.labels.template.setAll({
+  text: "{category}"
+});
+
+legend.valueLabels.template.setAll({
+  forceHidden: true
+});
+
+
+// *** MODIFICACIÓN PRINCIPAL: Cargar Datos desde CSV de Google Sheets ***
+
+// Usa el plugin JSON para cargar el CSV
+series.get("tooltip").label.set("text", "Cargando datos..."); // Opcional: Mensaje de carga
+
+am5.net.load(CSV_URL).then(function(result) {
+  // Parsear los datos CSV.
+  // amCharts es inteligente y generalmente deduce los tipos, pero debes nombrar las columnas (category y value)
+  var data = am5.CSVParser.parse(result.response, {
+    // Define el mapeo de columnas del CSV a los campos de la serie
+    delimiter: ",", // Google Sheets CSV usa coma
+    skipHeader: false, // La primera fila son los encabezados
+    reverse: true,
+    // Columnas que esperamos:
+    columnNames: ["category", "value"] 
+  });
+  
+  // Establecer los datos y hacer que el gráfico aparezca
+  series.data.setAll(data);
+  legend.data.setAll(series.dataItems);
+  series.appear(1000, 100);
+
+  series.get("tooltip").label.set("text", ""); // Limpiar el mensaje de carga
+}).catch(function(e) {
+  // Manejo de error si la carga falla
+  console.error("Error al cargar o parsear los datos del CSV:", e);
+  alert("No se pudieron cargar los datos del Google Sheet. Verifica la URL.");
+});
+
+// Play initial series animation (ya se mueve al bloque .then() para esperar los datos)
+// series.appear(1000, 100); 
+
+}); // end am5.ready()
+</script>
+
+<div id="chartdiv"></div>
